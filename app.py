@@ -39,6 +39,7 @@ default_values = {
     'V27': 0.0, 'V28': 0.0,
     'Amount': 50.0,
     'Hour': 12,
+    'Minute': 0,  
     'transactions_last_hour': 10,
     'amount_ratio': 1.0
 }
@@ -71,7 +72,7 @@ except KeyError as e:
     st.stop()
 
 # Optimal threshold from your notebook (REPLACE with your actual value, e.g., 0.3)
-OPTIMAL_THRESHOLD = 0.3  # <-- CHANGE THIS to the value from Cell 21
+OPTIMAL_THRESHOLD = 0.8599  # <-- CHANGE THIS to the value from Cell 21
 
 if st.button("Investigate Transaction", type="primary"):
     proba = model.predict_proba(input_df)[0, 1]
