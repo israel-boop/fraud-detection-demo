@@ -15,7 +15,19 @@ model, scaler = load_model()
 
 # Get the feature order the model expects
 expected_features = model.get_booster().feature_names
-st.write("Model expects these features in order:", expected_features)  # Debug, can remove later
+
+st.set_page_config(page_title="Sherlock Fraud Detector", layout="centered")
+st.title("🕵️ Sherlock Fraud Detector")
+st.markdown("Enter transaction details to see if it's suspicious.")
+
+# Input fields for key features
+col1, col2 = st.columns(2)
+with col1:
+    amount = st.number_input("Transaction Amount ($)", min_value=0.0, value=50.0, step=0.1)
+    hour = st.slider("Hour of Day (0-23)", 0, 23, 12)
+with col2:
+    v14 = st.number_input("V14 (anonymized feature)", value=-0.5, step=0.1)
+    v10 = st.number_input("V10 (anonymized feature)", value=0.2, step=0.1)
 
 # Default values for all features (from training)
 default_values = {
@@ -31,19 +43,6 @@ default_values = {
     'amount_ratio': 1.0
 }
 
-st.set_page_config(page_title="Sherlock Fraud Detector", layout="centered")
-st.title("🕵️ Sherlock Fraud Detector")
-st.markdown("Enter transaction details to see if it's suspicious.")
-
-# Input fields for key features
-col1, col2 = st.columns(2)
-with col1:
-    amount = st.number_input("Transaction Amount ($)", min_value=0.0, value=50.0, step=0.1)
-    hour = st.slider("Hour of Day (0-23)", 0, 23, 12)
-with col2:
-    v14 = st.number_input("V14 (anonymized feature)", value=-0.5, step=0.1)
-    v10 = st.number_input("V10 (anonymized feature)", value=0.2, step=0.1)
-
 # Build input dictionary with defaults + user inputs
 input_dict = default_values.copy()
 input_dict['Amount'] = amount
@@ -58,11 +57,21 @@ input_df = pd.DataFrame([input_dict])
 cols_to_scale = ['Time', 'Amount', 'transactions_last_hour', 'amount_ratio']
 input_df[cols_to_scale] = scaler.transform(input_df[cols_to_scale])
 
+# --- DEBUGGING: Show expected vs actual columns ---
+st.write("**Expected features from model:**", expected_features)
+st.write("**Columns in input_df:**", list(input_df.columns))
+st.write("**Missing columns:**", set(expected_features) - set(input_df.columns))
+st.write("**Extra columns:**", set(input_df.columns) - set(expected_features))
+
 # Reorder columns to match model's expected feature order
-input_df = input_df[expected_features]
+try:
+    input_df = input_df[expected_features]
+except KeyError as e:
+    st.error(f"KeyError: {e}")
+    st.stop()
 
 # Optimal threshold from your notebook (REPLACE with your actual value, e.g., 0.3)
-OPTIMAL_THRESHOLD = 0.8599  # <-- CHANGE THIS to the value from Cell 21
+OPTIMAL_THRESHOLD = 0.3  # <-- CHANGE THIS to the value from Cell 21
 
 if st.button("Investigate Transaction", type="primary"):
     proba = model.predict_proba(input_df)[0, 1]
