@@ -58,11 +58,6 @@ input_df = pd.DataFrame([input_dict])
 cols_to_scale = ['Time', 'Amount', 'transactions_last_hour', 'amount_ratio']
 input_df[cols_to_scale] = scaler.transform(input_df[cols_to_scale])
 
-# --- DEBUGGING: Show expected vs actual columns ---
-st.write("**Expected features from model:**", expected_features)
-st.write("**Columns in input_df:**", list(input_df.columns))
-st.write("**Missing columns:**", set(expected_features) - set(input_df.columns))
-st.write("**Extra columns:**", set(input_df.columns) - set(expected_features))
 
 # Reorder columns to match model's expected feature order
 try:
