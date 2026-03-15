@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-import plotly.express as px
 import plotly.graph_objects as go
 
 # Load model and scaler
@@ -14,17 +13,11 @@ def load_model():
 
 model, scaler = load_model()
 
-# Define feature names (must match training)
-# The notebook created these columns: Time, V1..V28, Amount, Hour, transactions_last_hour, amount_ratio
-# We'll create input fields for the most important ones, and set others to typical values.
-feature_names = ['Time', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10',
-                 'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18', 'V19', 'V20',
-                 'V21', 'V22', 'V23', 'V24', 'V25', 'V26', 'V27', 'V28', 'Amount',
-                 'Hour', 'transactions_last_hour', 'amount_ratio']
+# Get the feature order the model expects
+expected_features = model.get_booster().feature_names
+st.write("Model expects these features in order:", expected_features)  # Debug, can remove later
 
-# We'll use typical values from the dataset for most features (mean of training set)
-# But you can load actual means from a file, or hardcode.
-# For simplicity, we'll set a default dict.
+# Default values for all features (from training)
 default_values = {
     'Time': 0,
     'V1': 0.0, 'V2': 0.0, 'V3': 0.0, 'V4': 0.0, 'V5': 0.0, 'V6': 0.0, 'V7': 0.0,
@@ -42,7 +35,7 @@ st.set_page_config(page_title="Sherlock Fraud Detector", layout="centered")
 st.title("🕵️ Sherlock Fraud Detector")
 st.markdown("Enter transaction details to see if it's suspicious.")
 
-# Create input fields for the most important features (V14, V10, Amount, Hour)
+# Input fields for key features
 col1, col2 = st.columns(2)
 with col1:
     amount = st.number_input("Transaction Amount ($)", min_value=0.0, value=50.0, step=0.1)
@@ -51,27 +44,29 @@ with col2:
     v14 = st.number_input("V14 (anonymized feature)", value=-0.5, step=0.1)
     v10 = st.number_input("V10 (anonymized feature)", value=0.2, step=0.1)
 
-# For simplicity, we'll keep other features at default values.
-# In a production app, you might allow all features, but for demo this is fine.
+# Build input dictionary with defaults + user inputs
 input_dict = default_values.copy()
 input_dict['Amount'] = amount
 input_dict['Hour'] = hour
 input_dict['V14'] = v14
 input_dict['V10'] = v10
 
-# Convert to DataFrame
+# Create DataFrame
 input_df = pd.DataFrame([input_dict])
 
-# Scale the required columns (same as during training)
+# Scale the required columns
 cols_to_scale = ['Time', 'Amount', 'transactions_last_hour', 'amount_ratio']
 input_df[cols_to_scale] = scaler.transform(input_df[cols_to_scale])
 
-# Predict
+# Reorder columns to match model's expected feature order
+input_df = input_df[expected_features]
+
+# Optimal threshold from your notebook (REPLACE with your actual value, e.g., 0.3)
+OPTIMAL_THRESHOLD = 0.8599  # <-- CHANGE THIS to the value from Cell 21
+
 if st.button("Investigate Transaction", type="primary"):
     proba = model.predict_proba(input_df)[0, 1]
-    # Use threshold from notebook (you can hardcode the optimal threshold found, e.g., 0.3)
-    threshold = 0.3  # Replace with your optimal threshold from the notebook
-    pred = (proba >= threshold).astype(int)
+    pred = (proba >= OPTIMAL_THRESHOLD).astype(int)
     
     st.subheader("Result")
     if pred == 1:
@@ -87,17 +82,17 @@ if st.button("Investigate Transaction", type="primary"):
         domain = {'x': [0,1], 'y': [0,1]},
         gauge = {
             'axis': {'range': [None, 100]},
-            'bar': {'color': "darkred" if proba > threshold else "darkgreen"},
+            'bar': {'color': "darkred" if proba > OPTIMAL_THRESHOLD else "darkgreen"},
             'steps': [
-                {'range': [0, threshold*100], 'color': "lightgreen"},
-                {'range': [threshold*100, 100], 'color': "lightcoral"}],
+                {'range': [0, OPTIMAL_THRESHOLD*100], 'color': "lightgreen"},
+                {'range': [OPTIMAL_THRESHOLD*100, 100], 'color': "lightcoral"}],
             'threshold': {
                 'line': {'color': "red", 'width': 4},
                 'thickness': 0.75,
-                'value': threshold*100}}))
+                'value': OPTIMAL_THRESHOLD*100}}))
     st.plotly_chart(fig)
     
-    # Simple explanation based on feature values
+    # Simple explanation
     st.subheader("Investigation Notes")
     notes = []
     if amount < 50:
